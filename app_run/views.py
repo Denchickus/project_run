@@ -5,7 +5,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # чтобы доступ был без авторизации
 def company_details(request):
     data = {
         "company_name": getattr(settings, "COMPANY_NAME", "Company"),
