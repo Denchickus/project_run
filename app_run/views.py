@@ -19,8 +19,14 @@ def company_details(request):
     return Response(data)
 
 class RunViewSet(viewsets.ModelViewSet):
-    queryset = Run.objects.all()
     serializer_class = RunSerializer
+
+    def get_queryset(self):
+        qs = Run.objects.select_related('athlete')
+        athlete_id = self.request.query_params.get('athlete_id')
+        if athlete_id:
+            qs = qs.filter(athlete_id=athlete_id)
+        return qs
 
 
 class UserViewSet(ReadOnlyModelViewSet):
