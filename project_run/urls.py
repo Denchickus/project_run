@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 from app_run.views import RunViewSet, UserViewSet
 
 router = DefaultRouter()
-router.register('runs', RunViewSet)
+router.register('runs', RunViewSet, basename='runs')
 router.register('users', UserViewSet, basename='users')
 
 urlpatterns = [
