@@ -1,9 +1,9 @@
-# core/views.py
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import viewsets
+from rest_framework.filters import SearchFilter
 from .models import Run
 from .serializers import RunSerializer, UserSerializer
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -32,7 +32,8 @@ class RunViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
-
+    filter_backends = [SearchFilter]
+    search_fields = ['first_name', 'last_name']
     def get_queryset(self):
         qs = User.objects.all()
         qs = qs.exclude(is_superuser=True)  # скрываем админов
