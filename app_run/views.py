@@ -31,6 +31,7 @@ class RunViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
+    queryset = User.objects.all()
 
     def get_queryset(self):
         qs = User.objects.all()
