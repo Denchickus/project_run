@@ -1,13 +1,16 @@
 from django.conf import settings
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import User
+
+from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
+from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.filters import SearchFilter
+from rest_framework.viewsets import ReadOnlyModelViewSet
+
 from .models import Run
 from .serializers import RunSerializer, UserSerializer
-from rest_framework.viewsets import ReadOnlyModelViewSet
-from django.contrib.auth.models import User
+
 
 @api_view(['GET'])
 def company_details(request):
@@ -18,9 +21,9 @@ def company_details(request):
     }
     return Response(data)
 
+
 class RunViewSet(viewsets.ModelViewSet):
     serializer_class = RunSerializer
-    #queryset = Run.objects.all()
 
     def get_queryset(self):
         qs = Run.objects.select_related('athlete')
@@ -29,14 +32,44 @@ class RunViewSet(viewsets.ModelViewSet):
             qs = qs.filter(athlete_id=athlete_id)
         return qs
 
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        run = self.get_object()
+
+        if run.status != Run.Status.INIT:
+            return Response(
+                {"error": "Забег уже запущен или завершён"},
+                status=http_status.HTTP_400_BAD_REQUEST
+            )
+
+        run.status = Run.Status.IN_PROGRESS
+        run.save()
+
+        return Response({"status": run.status}, status=http_status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def stop(self, request, pk=None):
+        run = self.get_object()
+
+        if run.status != Run.Status.IN_PROGRESS:
+            return Response(
+                {"error": "Забег ещё не запущен или уже завершён"},
+                status=http_status.HTTP_400_BAD_REQUEST
+            )
+
+        run.status = Run.Status.FINISHED
+        run.save()
+
+        return Response({"status": run.status}, status=http_status.HTTP_200_OK)
+
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
     filter_backends = [SearchFilter]
     search_fields = ['first_name', 'last_name']
+
     def get_queryset(self):
-        qs = User.objects.all()
-        qs = qs.exclude(is_superuser=True)  # скрываем админов
+        qs = User.objects.all().exclude(is_superuser=True)
 
         user_type = self.request.query_params.get('type')
 
@@ -46,6 +79,3 @@ class UserViewSet(ReadOnlyModelViewSet):
             qs = qs.filter(is_staff=False)
 
         return qs
-
-
-
