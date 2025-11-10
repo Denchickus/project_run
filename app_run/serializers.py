@@ -14,13 +14,19 @@ class RunSerializer(serializers.ModelSerializer):
         fields = ['id', 'created_at', 'comment', 'athlete', 'athlete_data', 'status']
 
 class UserSerializer(serializers.ModelSerializer):
+    # type — чтобы отличать тренеров от атлетов
+    type = serializers.SerializerMethodField()
     # Добавляем вычисляемое поле (оно не хранится в БД)
     # DRF сам вызовет метод get_runs_finished()
     runs_finished = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'date_joined', 'username', 'first_name', 'last_name', 'runs_finished']
+        fields = ['type', 'id', 'date_joined', 'username', 'first_name', 'last_name', 'runs_finished']
+
+    def get_type(self, obj):
+        # Тренер → True (is_staff=True), Атлет → False
+        return 'coach' if obj.is_staff else 'athlete'
 
     def get_runs_finished(self, obj):
         """Возвращает количество завершённых забегов данного пользователя.
