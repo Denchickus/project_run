@@ -13,7 +13,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
 
     # API для AthleteInfo (через обычный path)
-    path('api/', include('app_run.urls')),   # ? ДОБАВИЛИ ЭТУ СТРОКУ
+    path('api/', include('app_run.urls')),
 
     # Компания
     path('api/company_details/', company_details),
