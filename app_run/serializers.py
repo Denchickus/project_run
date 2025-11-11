@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Run
+from .models import Run, AthleteInfo
 
 class AthleteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,4 +41,20 @@ class UserSerializer(serializers.ModelSerializer):
             athlete=obj,
             status=Run.Status.FINISHED
         ).count()
+
+class AthleteInfoSerializer(serializers.ModelSerializer):
+
+    # user_id мы возвращаем, но не редактируем — он берётся из URL
+    user_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = AthleteInfo
+        fields = ['user_id', 'goals', 'weight']
+
+    # Валидатор для поля weight
+    def validate_weight(self, value):
+        # value — это то, что прислал клиент в поле "weight"
+        if value is not None and not (1 <= value <= 899):
+            raise serializers.ValidationError("weight must be between 1 and 899")
+        return value
 

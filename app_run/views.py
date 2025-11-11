@@ -1,4 +1,5 @@
 from django.conf import settings
+from rest_framework.views import APIView
 from django.contrib.auth.models import User
 
 from rest_framework.decorators import api_view, action
@@ -11,8 +12,8 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
-from .models import Run
-from .serializers import RunSerializer, UserSerializer
+from .models import Run, AthleteInfo
+from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer
 from .pagination import CustomPageNumberPagination
 
 
@@ -144,4 +145,46 @@ class UserViewSet(ReadOnlyModelViewSet):
         # Если size нет → выводим все пользователи без пагинации
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+class AthleteInfoView(APIView):
+
+    # Функция, которая пытается получить объект по user_id
+    def get_object(self, user_id):
+        try:
+            # Проверяем, существует ли пользователь
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            # Если нет — возвращаем 404
+            return None, Response({"error": "User not found"}, status=http_status.HTTP_404_NOT_FOUND)
+
+        # Получаем или создаём пустую запись AthleteInfo
+        athlete_info, _ = AthleteInfo.objects.get_or_create(user=user)
+        return athlete_info, None
+
+    # Получение данных (GET)
+    def get(self, request, user_id):
+        athlete_info, error = self.get_object(user_id)
+        if error:
+            return error  # Если ошибка — просто возвращаем её
+
+        serializer = AthleteInfoSerializer(athlete_info)
+        return Response(serializer.data, status=http_status.HTTP_200_OK)
+
+    # Обновление данных (PUT)
+    def put(self, request, user_id):
+        athlete_info, error = self.get_object(user_id)
+        if error:
+            return error
+
+        # partial=True — значит можно обновить только одно поле, необязательно оба
+        serializer = AthleteInfoSerializer(athlete_info, data=request.data, partial=True)
+
+        # Проверяем, что данные корректны
+        if serializer.is_valid():
+            # Сохраняем изменения
+            serializer.save()
+            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+
+        # Если данные некорректны — возвращаем ошибки
+        return Response(serializer.errors, status=http_status.HTTP_400_BAD_REQUEST)
 
