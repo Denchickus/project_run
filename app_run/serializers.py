@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Run, AthleteInfo
+from .models import Run, AthleteInfo, Challenge
 
 class AthleteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -57,4 +57,15 @@ class AthleteInfoSerializer(serializers.ModelSerializer):
         if value is not None and not (1 <= value <= 899):
             raise serializers.ValidationError("weight must be between 1 and 899")
         return value
+
+
+class ChallengeSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для модели Challenge.
+    Используется для вывода данных через API (чтение списка).
+    """
+
+    class Meta:
+        model = Challenge
+        fields = ['id', 'full_name', 'athlete']
 

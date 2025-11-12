@@ -23,6 +23,7 @@ class Run(models.Model):
     def __str__(self):
         return f"Run #{self.pk} ({self.get_status_display()})"
 
+
 class AthleteInfo(models.Model):
     # OneToOne — расширяем профиль пользователя дополнительными полями
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='athlete_info')
@@ -33,3 +34,22 @@ class AthleteInfo(models.Model):
 
     def __str__(self):
         return f"AthleteInfo for {self.user.username}"
+
+
+class Challenge(models.Model):
+    """
+    Модель челленджа, который атлет выполняет после 10 завершённых забегов.
+    """
+
+    # Атлет, который выполнил челлендж.
+    # ForeignKey, потому что у одного атлета может быть несколько челленджей.
+    athlete = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='challenges'
+    )
+
+    # Название челленджа — "Сделай 10 Забегов!"
+    full_name = models.CharField(max_length=255)
+
+    def __str__(self):
+        # Строковое представление — удобно видеть в админке
+        return f"{self.full_name} ({self.athlete.username})"

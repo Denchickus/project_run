@@ -12,8 +12,8 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
-from .models import Run, AthleteInfo
-from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer
+from .models import Run, AthleteInfo, Challenge
+from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer
 from .pagination import CustomPageNumberPagination
 
 
@@ -102,6 +102,35 @@ class RunViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    def perform_update(self, serializer):
+        """
+        Мы переопределяем метод perform_update, чтобы при изменении статуса Run
+        автоматически проверять количество завершённых забегов у атлета
+        и при необходимости создавать челлендж.
+
+        Этот метод вызывается, когда кто-то делает PUT или PATCH запрос к Run.
+        Здесь мы добавляем проверку челленджа при обновлении статуса.
+        """
+        # Сохраняем объект (забег) с новыми данными
+        run = serializer.save()
+
+        # Проверяем, изменился ли статус на "finished"
+        if run.status == "finished":
+            # Берём пользователя (атлета), которому принадлежит этот забег
+            athlete = run.athlete
+
+            # Считаем, сколько у него уже завершённых забегов
+            finished_count = Run.objects.filter(
+                athlete=athlete, status="finished"
+            ).count()
+
+            # Если это 10-й завершённый забег — создаём челлендж
+            if finished_count == 10:
+                Challenge.objects.create(
+                    athlete=athlete,
+                    full_name="Сделай 10 Забегов!"
+                )
+
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
@@ -187,4 +216,26 @@ class AthleteInfoView(APIView):
 
         # Если данные некорректны — возвращаем ошибки
         return Response(serializer.errors, status=http_status.HTTP_400_BAD_REQUEST)
+
+
+class ChallengeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ReadOnlyModelViewSet — только для чтения.
+    Возвращает список всех челленджей или фильтрует их по id атлета.
+    """
+
+    queryset = Challenge.objects.all()
+    serializer_class = ChallengeSerializer
+
+    def get_queryset(self):
+        """
+        Если в URL есть параметр ?athlete=<id>,
+        фильтруем челленджи по конкретному пользователю.
+        """
+        qs = super().get_queryset()
+        athlete_id = self.request.query_params.get('athlete')
+        if athlete_id:
+            qs = qs.filter(athlete_id=athlete_id)
+        return qs
+
 

@@ -2,11 +2,12 @@ from django.contrib import admin
 from django.urls import path, include
 from app_run.views import company_details
 from rest_framework.routers import DefaultRouter
-from app_run.views import RunViewSet, UserViewSet
+from app_run.views import RunViewSet, UserViewSet, ChallengeViewSet
 
 router = DefaultRouter()
 router.register('runs', RunViewSet, basename='runs')
 router.register('users', UserViewSet, basename='users')
+router.register('challenges', ChallengeViewSet, basename='challenges')
 
 urlpatterns = [
     # API для Run и User через ViewSet
