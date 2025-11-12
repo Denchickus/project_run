@@ -102,35 +102,6 @@ class RunViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def perform_update(self, serializer):
-        """
-        Мы переопределяем метод perform_update, чтобы при изменении статуса Run
-        автоматически проверять количество завершённых забегов у атлета
-        и при необходимости создавать челлендж.
-
-        Этот метод вызывается, когда кто-то делает PUT или PATCH запрос к Run.
-        Здесь мы добавляем проверку челленджа при обновлении статуса.
-        """
-        # Сохраняем объект (забег) с новыми данными
-        run = serializer.save()
-
-        # Проверяем, изменился ли статус на "finished"
-        if run.status == "finished":
-            # Берём пользователя (атлета), которому принадлежит этот забег
-            athlete = run.athlete
-
-            # Считаем, сколько у него уже завершённых забегов
-            finished_count = Run.objects.filter(
-                athlete=athlete, status="finished"
-            ).count()
-
-            # Если это 10-й завершённый забег — создаём челлендж
-            if finished_count == 10:
-                Challenge.objects.create(
-                    athlete=athlete,
-                    full_name="Сделай 10 Забегов!"
-                )
-
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
