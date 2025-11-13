@@ -12,7 +12,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
-from .models import Run, AthleteInfo, Challenge
+from .models import Run, AthleteInfo, Challenge, Position
 from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer, PositionSerializer
 from .pagination import CustomPageNumberPagination
 
