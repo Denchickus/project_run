@@ -35,7 +35,6 @@ class Run(models.Model):
         # После сохранения — если случился ПЕРЕХОД в 'finished'
         if self.status == 'finished' and old_status != 'finished':
             # Избегаем циклического импорта
-            from .models import Challenge  # если Challenge в том же файле, импорт не нужен
 
             finished_count = Run.objects.filter(athlete=self.athlete, status='finished').count()
 
@@ -82,3 +81,39 @@ class Challenge(models.Model):
     def __str__(self):
         # Строковое представление — удобно видеть в админке
         return f"{self.full_name} ({self.athlete.username})"
+
+
+class Position(models.Model):
+    """
+    Позиция атлета во время забега.
+    Хранит ссылку на забег и координаты (широту и долготу).
+    """
+
+    # К какому забегу относятся координаты.
+    # related_name='positions' → потом сможем делать: run.positions.all()
+    run = models.ForeignKey(
+        Run,
+        on_delete=models.CASCADE,
+        related_name='positions',
+    )
+
+    # Широта: от -90.0000 до +90.0000, до 4 знаков после запятой.
+    # max_digits: всего цифр (до и после запятой)
+    # decimal_places: сколько цифр после запятой
+    latitude = models.DecimalField(
+        max_digits=7,     # например: -89.9999 (7 символов вместе со знаком и целой частью)
+        decimal_places=4,
+    )
+
+    # Долгота: от -180.0000 до +180.0000, тоже до 4 знаков.
+    longitude = models.DecimalField(
+        max_digits=8,     # например: -179.9999
+        decimal_places=4,
+    )
+
+    # Когда точка была записана (для информации, может пригодиться позже).
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        # Удобное строковое представление для админки и отладки
+        return f"Run {self.run_id}: {self.latitude}, {self.longitude}"

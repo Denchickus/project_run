@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Run, AthleteInfo, Challenge
+from .models import Run, AthleteInfo, Challenge, Position
 
 class AthleteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,4 +68,44 @@ class ChallengeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Challenge
         fields = ['id', 'full_name', 'athlete']
+
+
+class PositionSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для позиции.
+    Используется и для чтения, и для создания.
+    """
+
+    class Meta:
+        model = Position
+        # id нужен, чтобы фронт/клиент знал, какую позицию удалять
+        fields = ['id', 'run', 'latitude', 'longitude', 'created_at']
+
+    def validate_latitude(self, value):
+        """
+        Валидация широты:
+        должна быть в диапазоне [-90.0; 90.0].
+        """
+        if not (-90.0 <= float(value) <= 90.0):
+            raise serializers.ValidationError("Latitude must be between -90.0 and 90.0")
+        return value
+
+    def validate_longitude(self, value):
+        """
+        Валидация долготы:
+        должна быть в диапазоне [-180.0; 180.0].
+        """
+        if not (-180.0 <= float(value) <= 180.0):
+            raise serializers.ValidationError("Longitude must be between -180.0 and 180.0")
+        return value
+
+    def validate_run(self, value):
+        """
+        Проверяем, что забег в статусе in_progress.
+        Если забег не запущен или уже завершён – возвращаем 400 через ValidationError.
+        """
+        if value.status != "in_progress":
+            # DRF сам превратит это в HTTP 400
+            raise serializers.ValidationError("Run must be in_progress to record positions")
+        return value
 

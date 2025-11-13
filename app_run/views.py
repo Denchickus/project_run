@@ -13,7 +13,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
 from .models import Run, AthleteInfo, Challenge
-from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer
+from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer, PositionSerializer
 from .pagination import CustomPageNumberPagination
 
 
@@ -207,6 +207,40 @@ class ChallengeViewSet(viewsets.ReadOnlyModelViewSet):
         athlete_id = self.request.query_params.get('athlete')
         if athlete_id:
             qs = qs.filter(athlete_id=athlete_id)
+        return qs
+
+
+
+class PositionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для модели Position.
+
+    Что умеет:
+    - POST /api/positions/         → создать позицию
+    - GET  /api/positions/         → получить все позиции
+    - GET  /api/positions/?run=ID  → получить позиции только для одного забега
+    - DELETE /api/positions/{id}/  → удалить конкретную позицию
+
+    Остальное (retrieve, update) нам не так важно, но ModelViewSet их всё равно даст.
+    """
+
+    queryset = Position.objects.all()
+    serializer_class = PositionSerializer
+
+    def get_queryset(self):
+        """
+        Переопределяем queryset, чтобы добавить фильтрацию по run.
+
+        Если в запросе есть параметр ?run=<run_id>,
+        вернём только позиции этого забега.
+        Иначе – все позиции.
+        """
+        qs = super().get_queryset()
+        run_id = self.request.query_params.get('run')
+
+        if run_id is not None:
+            qs = qs.filter(run_id=run_id)
+
         return qs
 
 
