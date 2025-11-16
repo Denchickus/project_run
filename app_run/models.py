@@ -1,4 +1,5 @@
 from django.db import models
+from haversine import haversine, Unit
 from django.contrib.auth.models import User
 
 
@@ -20,25 +21,34 @@ class Run(models.Model):
         default=Status.INIT
     )
 
+    distance = models.FloatField(default=0)  # километры
+
     def save(self, *args, **kwargs):
         """
-        Переопределяем save, чтобы отреагировать на переход в finished
-        вне зависимости от того, откуда он пришёл (update, кастомный action, admin, shell).
+        Переопределяем save(), чтобы:
+        1) Реагировать на переход в 'finished' (Challenge)
+        2) После stop — рассчитать distance по GPS точкам
         """
-        # Определяем старый статус (если объект уже существует)
+
+        # 1. Запоминаем старый статус ДО сохранения
         old_status = None
         if self.pk:
-            old_status = Run.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            old_status = Run.objects.filter(pk=self.pk) \
+                .values_list('status', flat=True) \
+                .first()
 
-        super().save(*args, **kwargs)  # сначала сохраняем текущее изменение
+        # 2. Сохраняем объект (обновится статус)
+        super().save(*args, **kwargs)
 
-        # После сохранения — если случился ПЕРЕХОД в 'finished'
+        # Реагируем ТОЛЬКО если произошёл переход в finished
         if self.status == 'finished' and old_status != 'finished':
-            # Избегаем циклического импорта
 
-            finished_count = Run.objects.filter(athlete=self.athlete, status='finished').count()
+            # --- БЛОК 1: ЧЕЛЛЕНДЖ ---
+            finished_count = Run.objects.filter(
+                athlete=self.athlete,
+                status='finished'
+            ).count()
 
-            # Создаём челлендж только на РОВНО 10-й финиш и только если его ещё нет
             if finished_count == 10 and not Challenge.objects.filter(
                     athlete=self.athlete,
                     full_name="Сделай 10 Забегов!"
@@ -48,8 +58,31 @@ class Run(models.Model):
                     full_name="Сделай 10 Забегов!"
                 )
 
+            # --- БЛОК 2: РАСЧЁТ DISTANCE ---
+            positions = list(
+                self.positions.order_by('created_at')
+                .values_list('latitude', 'longitude')
+            )
+
+            total_km = 0.0
+
+            # Если точек достаточно — считаем
+            if len(positions) >= 2:
+                for i in range(len(positions) - 1):
+                    point1 = (float(positions[i][0]), float(positions[i][1]))
+                    point2 = (float(positions[i + 1][0]), float(positions[i + 1][1]))
+                    segment = haversine(point1, point2, unit=Unit.KILOMETERS)
+                    total_km += segment
+
+            # Записываем вычисленную дистанцию
+            self.distance = total_km
+
+            # Сохраняем ТОЛЬКО distance, чтобы не вызвать повторный save()
+            super().save(update_fields=['distance'])
+
     def __str__(self):
         return f"Run #{self.pk} ({self.get_status_display()})"
+
 
 
 class AthleteInfo(models.Model):
