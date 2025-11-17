@@ -26,46 +26,29 @@ class Run(models.Model):
     def save(self, *args, **kwargs):
         """
         Переопределяем save(), чтобы:
-        1) Реагировать на переход в finished (создание челленджей)
-        2) После stop — рассчитать distance по GPS-трекам
+        1) Реагировать на переход в finished (челленджи)
+        2) После stop — рассчитать distance по GPS точкам
         """
 
-        # ------------------------------
-        # 1. Получаем старый статус ДО сохранения
-        # ------------------------------
-        # self.status — новое значение (в памяти, ещё НЕ в базе)
-        # Значение из базы нужно получить отдельно
+        # 1. Запоминаем старый статус ДО сохранения
         old_status = None
         if self.pk:
-            # Если объект уже существует — берём его старый статус
             old_status = Run.objects.filter(pk=self.pk) \
                 .values_list('status', flat=True) \
                 .first()
 
-        # ------------------------------
-        # 2. Сохраняем новый статус в БД
-        # ------------------------------
-        # Теперь статус действительно записан,
-        # объект существует в базе, у него точно есть pk
+        # 2. Сохраняем изменения (новый статус попадёт в БД)
         super().save(*args, **kwargs)
 
-        # ------------------------------
-        # 3. Реагируем на переход → finished
-        # ------------------------------
-        # Проверяем:
-        #  a) статус сейчас 'finished'
-        #  b) раньше он НЕ был 'finished'
-        if self.status == 'finished' and old_status != 'finished':
+        # 3. Реагируем только на ПЕРЕХОД → finished
+        if self.status == self.Status.FINISHED and old_status != self.Status.FINISHED:
 
-            # ==============================
-            # ЧЕЛЛЕНДЖ №1 — «Сделай 10 забегов!»
-            # ==============================
+            # --- ЧЕЛЛЕНДЖ 10 забегов ---
             finished_count = Run.objects.filter(
                 athlete=self.athlete,
-                status='finished'
+                status=self.Status.FINISHED
             ).count()
 
-            # Создаём челлендж, если это РОВНО 10-й завершённый забег
             if finished_count == 10 and not Challenge.objects.filter(
                     athlete=self.athlete,
                     full_name="Сделай 10 Забегов!"
@@ -75,16 +58,31 @@ class Run(models.Model):
                     full_name="Сделай 10 Забегов!"
                 )
 
-            # ==============================
-            # ЧЕЛЛЕНДЖ №2 — «Пробеги 50 километров!»
-            # ==============================
-            # Суммируем дистанцию всех завершённых забегов
+            # --- РАСЧЁТ distance для текущего забега ---
+            positions = list(
+                self.positions.order_by('created_at')
+                .values_list('latitude', 'longitude')
+            )
+
+            total_km = 0.0
+            if len(positions) >= 2:
+                for i in range(len(positions) - 1):
+                    point1 = (float(positions[i][0]), float(positions[i][1]))
+                    point2 = (float(positions[i + 1][0]), float(positions[i + 1][1]))
+                    segment = haversine(point1, point2, unit=Unit.KILOMETERS)
+                    total_km += segment
+
+            self.distance = total_km
+
+            # Сохраняем distance в базу, чтобы он участвовал в сумме
+            super().save(update_fields=['distance'])
+
+            # --- ЧЕЛЛЕНДЖ 50 км ---
             total_distance = Run.objects.filter(
                 athlete=self.athlete,
-                status='finished'
+                status=self.Status.FINISHED
             ).aggregate(total=models.Sum('distance'))['total'] or 0
 
-            # Если пробежал 50+ км и челлендж ещё не выдавался
             if total_distance >= 50 and not Challenge.objects.filter(
                     athlete=self.athlete,
                     full_name="Пробеги 50 километров!"
@@ -93,41 +91,6 @@ class Run(models.Model):
                     athlete=self.athlete,
                     full_name="Пробеги 50 километров!"
                 )
-
-            # ==============================
-            # 4. Расчёт distance для ТЕКУЩЕГО забега
-            # ==============================
-            # Берём связанные позиции (GPS) в порядке времени
-            positions = list(
-                self.positions.order_by('created_at')
-                .values_list('latitude', 'longitude')
-            )
-
-            # Если точек меньше двух → дистанция 0
-            if len(positions) < 2:
-                total_km = 0.0
-            else:
-                total_km = 0.0
-                # Складываем расстояния между последовательными координатами
-                for i in range(len(positions) - 1):
-                    point1 = (float(positions[i][0]), float(positions[i][1]))
-                    point2 = (float(positions[i + 1][0]), float(positions[i + 1][1]))
-
-                    # haversine считает расстояние на сфере в километрах
-                    segment = haversine(point1, point2, unit=Unit.KILOMETERS)
-                    total_km += segment
-
-            # Записываем результат в поле модели
-            self.distance = total_km
-
-            # ------------------------------
-            # 5. Второй save — только поля distance
-            # ------------------------------
-            # Чтобы:
-            #  - не запускать повторно логику finished
-            #  - избежать рекурсии
-            #  - обновить только одно поле
-            super().save(update_fields=['distance'])
 
     def __str__(self):
         return f"Run #{self.pk} ({self.get_status_display()})"
