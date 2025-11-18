@@ -6,13 +6,12 @@ from .views import (
 )
 
 urlpatterns = [
-    # Информация об атлете
+    # РРЅС„РѕСЂРјР°С†РёСЏ РѕР± Р°С‚Р»РµС‚Рµ
     path('athlete_info/<int:user_id>/', AthleteInfoView.as_view()),
 
-    # Список Collectible Items
+    # РЎРїРёСЃРѕРє Collectible Items
     path('collectible_item/', CollectibleItemView.as_view()),
 
-    # Загрузка Excel-файла
+    # Р—Р°РіСЂСѓР·РєР° Excel-С„Р°Р№Р»Р°
     path('upload_file/', UploadCollectibleFile.as_view()),
 ]
-
