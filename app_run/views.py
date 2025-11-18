@@ -256,24 +256,29 @@ class CollectibleItemView(generics.ListAPIView):
 class UploadCollectibleFile(APIView):
 
     def post(self, request):
-        file = request.FILES.get('file')
+        # 1. Проверяем что файл передан
+        file = request.FILES.get("file")
         if not file:
-            return Response(["Файл не передан"], status=400)
+            return Response({"error": "Файл не передан"}, status=400)
 
-        # Загружаем Excel
+        # 2. Пытаемся загрузить Excel
         try:
             wb = load_workbook(file)
             sheet = wb.active
         except Exception:
-            return Response(["Неверный формат файла"], status=400)
+            return Response({"error": "Неверный формат файла"}, status=400)
 
         invalid_rows = []
-        created_items = 0
 
+        # 3. Проходим по строкам начиная со второй (первая — заголовки)
         for row in sheet.iter_rows(min_row=2, values_only=True):
+
+            # пропускаем полностью пустые строки
             if all(v is None for v in row):
                 continue
 
+            # порядок столбцов Excel:
+            # Name, UID, Value, Latitude, Longitude, URL
             name, uid, value, lat, lon, picture = row
 
             data = {
@@ -282,18 +287,20 @@ class UploadCollectibleFile(APIView):
                 "value": value,
                 "latitude": lat,
                 "longitude": lon,
-                "picture": picture
+                "picture": picture,
             }
 
             serializer = CollectibleItemSerializer(data=data)
 
+            # создаём только валидные строки
             if serializer.is_valid():
                 serializer.save()
-                created_items += 1
             else:
                 invalid_rows.append(list(row))
 
-        return Response([created_items, invalid_rows], status=200)
+        return Response(invalid_rows, status=200)
+
+
 
 
 
