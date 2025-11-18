@@ -302,7 +302,7 @@ class UploadCollectibleFile(APIView):
         return Response({
             "created": created_items,
             "invalid_rows": invalid_rows,
-        }, status=201)
+        }, status=200)
 
 
 
