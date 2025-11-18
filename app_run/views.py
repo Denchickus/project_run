@@ -17,6 +17,9 @@ from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, C
     CollectibleItemSerializer
 from .pagination import CustomPageNumberPagination
 
+from openpyxl import load_workbook
+
+
 
 @api_view(['GET'])
 def company_details(request):
