@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
-from rest_framework import status as http_status
+from rest_framework import status as http_status, generics
 from rest_framework import viewsets
 from rest_framework.filters import SearchFilter
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -12,8 +12,9 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
-from .models import Run, AthleteInfo, Challenge, Position
-from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer, PositionSerializer
+from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
+from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer, PositionSerializer, \
+    CollectibleItemSerializer
 from .pagination import CustomPageNumberPagination
 
 
@@ -242,5 +243,63 @@ class PositionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(run_id=run_id)
 
         return qs
+
+
+class CollectibleItemView(generics.ListAPIView):
+    queryset = CollectibleItem.objects.all()
+    serializer_class = CollectibleItemSerializer
+
+
+class UploadCollectibleFile(APIView):
+
+    def post(self, request):
+        # 1. Проверяем что файл есть
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "Файл не передан"}, status=400)
+
+        # 2. Загружаем Excel
+        try:
+            wb = load_workbook(file)
+            sheet = wb.active
+        except Exception:
+            return Response({"error": "Неверный формат файла"}, status=400)
+
+        invalid_rows = []
+        created_items = 0
+
+        # 3. Цикл по строкам начиная со 2 (1 — заголовки)
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            name, uid, value, lat, lon, picture = row
+
+            # Пропускаем полностью пустые строки
+            if all(v is None for v in row):
+                continue
+
+            # 4. Подготавливаем данные для сериализатора
+            data = {
+                "name": name,
+                "uid": uid,
+                "value": value,
+                "latitude": lat,
+                "longitude": lon,
+                "picture": picture
+            }
+
+            serializer = CollectibleItemSerializer(data=data)
+
+            # 5. Если строка валидная → создаём
+            if serializer.is_valid():
+                serializer.save()
+                created_items += 1
+            else:
+                # 6. Если НЕвалидная → сохраняем строку в ошибочные
+                invalid_rows.append(list(row))
+
+        return Response({
+            "created": created_items,
+            "invalid_rows": invalid_rows,
+        }, status=201)
+
 
 

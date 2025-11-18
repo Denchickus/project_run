@@ -162,3 +162,16 @@ class Position(models.Model):
     def __str__(self):
         # Удобное строковое представление для админки и отладки
         return f"Run {self.run_id}: {self.latitude}, {self.longitude}"
+
+
+class CollectibleItem(models.Model):
+    name = models.CharField(max_length=255)
+    uid = models.CharField(max_length=255, unique=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    picture = models.URLField()
+    value = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.name} ({self.uid})"
+
