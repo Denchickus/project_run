@@ -298,7 +298,9 @@ class UploadCollectibleFile(APIView):
             else:
                 invalid_rows.append(list(row))
 
+        # СПИСОК невалидных строк
         return Response(invalid_rows, status=200)
+
 
 
 
