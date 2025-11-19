@@ -1,3 +1,5 @@
+from geopy.distance import geodesic
+
 from django.conf import settings
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
@@ -14,7 +16,7 @@ from rest_framework.filters import OrderingFilter
 
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 from .serializers import RunSerializer, UserSerializer, AthleteInfoSerializer, ChallengeSerializer, PositionSerializer, \
-    CollectibleItemSerializer
+    CollectibleItemSerializer, UserDetailSerializer
 from .pagination import CustomPageNumberPagination
 
 from openpyxl import load_workbook
@@ -150,6 +152,11 @@ class UserViewSet(ReadOnlyModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    def get_serializer_class(self):
+        if self.action == 'retrieve':  # /api/users/ID/
+            return UserDetailSerializer
+        return UserSerializer  # /api/users/
+
 class AthleteInfoView(APIView):
 
     # Функция, которая пытается получить объект по user_id
@@ -246,6 +253,20 @@ class PositionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(run_id=run_id)
 
         return qs
+
+    def perform_create(self, serializer):
+        position = serializer.save()
+
+        user = position.run.athlete
+
+        for item in CollectibleItem.objects.all():
+            distance = geodesic(
+                (position.latitude, position.longitude),
+                (item.latitude, item.longitude)
+            ).meters
+
+            if distance <= 100:
+                item.collected_by.add(user)
 
 
 class CollectibleItemView(generics.ListAPIView):

@@ -172,6 +172,12 @@ class CollectibleItem(models.Model):
     picture = models.URLField()
     value = models.IntegerField()
 
+    collected_by = models.ManyToManyField(
+        User,
+        related_name='items',   # user.items → предметы пользователя
+        blank=True
+    )
+
     def __str__(self):
         return f"{self.name} ({self.uid})"
 

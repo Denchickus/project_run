@@ -127,4 +127,12 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Longitude must be between -180 and 180")
         return value
 
+class UserDetailSerializer(serializers.ModelSerializer):
+    items = CollectibleItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'items']
+
+
 
