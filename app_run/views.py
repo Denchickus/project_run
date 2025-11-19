@@ -111,7 +111,7 @@ class RunViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
-    filter_backends = [SearchFilter]
+    #filter_backends = [SearchFilter]
     search_fields = ['first_name', 'last_name']
 
     # Включаем и поиск по имени, и сортировку по дате регистрации
