@@ -22,6 +22,7 @@ class Run(models.Model):
     )
 
     distance = models.FloatField(default=0)  # километры
+    run_time_seconds = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
         """
@@ -158,6 +159,8 @@ class Position(models.Model):
 
     # Когда точка была записана (для информации, может пригодиться позже).
     created_at = models.DateTimeField(auto_now_add=True)
+
+    date_time = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         # Удобное строковое представление для админки и отладки

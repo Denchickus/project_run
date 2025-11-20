@@ -80,7 +80,7 @@ class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
         # id нужен, чтобы фронт/клиент знал, какую позицию удалять
-        fields = ['id', 'run', 'latitude', 'longitude', 'created_at']
+        fields = ['id', 'run', 'latitude', 'longitude', 'created_at', 'date_time']
 
     def validate_latitude(self, value):
         """

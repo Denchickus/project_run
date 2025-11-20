@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
-from rest_framework import status as http_status, generics
+from rest_framework import status as http_status, generics, serializers
 from rest_framework import viewsets
 from rest_framework.filters import SearchFilter
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -34,30 +34,44 @@ def company_details(request):
 
 
 class RunViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для работы с забегами атлетов.
+    Поддерживает фильтрацию, сортировку, пагинацию
+    и операции смены статуса (start, stop).
+    """
+
     serializer_class = RunSerializer
 
-    # Включаем фильтры и сортировку
+    # Фильтры и сортировка
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-
-    # Разрешаем фильтрацию по status и athlete
     filterset_fields = ['status', 'athlete']
-
-    # Разрешаем сортировку по created_at
-    # Пример: ?ordering=created_at или ?ordering=-created_at
     ordering_fields = ['created_at']
 
-    # По умолчанию пагинации нет → выводятся все записи
+    # По умолчанию — без пагинации
     pagination_class = None
 
     def get_queryset(self):
+        """
+        Основной queryset + фильтр по athlete_id,
+        так как это часто используемый параметр.
+        """
         qs = Run.objects.select_related('athlete')
         athlete_id = self.request.query_params.get('athlete_id')
+
         if athlete_id:
             qs = qs.filter(athlete_id=athlete_id)
+
         return qs
+
+    # -----------------------------
+    #       Actions: start / stop
+    # -----------------------------
 
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
+        """
+        Запустить забег.
+        """
         run = self.get_object()
 
         if run.status != Run.Status.INIT:
@@ -73,6 +87,9 @@ class RunViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def stop(self, request, pk=None):
+        """
+        Завершить забег.
+        """
         run = self.get_object()
 
         if run.status != Run.Status.IN_PROGRESS:
@@ -84,29 +101,68 @@ class RunViewSet(viewsets.ModelViewSet):
         run.status = Run.Status.FINISHED
         run.save()
 
+        # После завершения забега — считаем время
+        self.calculate_run_time(run)
+
         return Response({"status": run.status}, status=http_status.HTTP_200_OK)
 
-    def get_list_with_optional_pagination(self, queryset):
-        """
-        Если пользователь передал параметр size → включаем пагинацию.
-        Если size нет → возвращаем весь queryset без пагинации.
-        """
-        if 'size' in self.request.query_params:
-            paginator = CustomPageNumberPagination()
-            return paginator.paginate_queryset(queryset, self.request, view=self)
-        return queryset
+    # -----------------------------
+    # Custom list (optional paging)
+    # -----------------------------
 
     def list(self, request, *args, **kwargs):
+        """
+        Если передан параметр size — включаем пагинацию.
+        Иначе выводим полный queryset.
+        """
         queryset = self.filter_queryset(self.get_queryset())
 
         if 'size' in request.query_params:
             paginator = CustomPageNumberPagination()
-            paginated_queryset = paginator.paginate_queryset(queryset, request, view=self)
-            serializer = self.get_serializer(paginated_queryset, many=True)
+            paginated = paginator.paginate_queryset(queryset, request, view=self)
+            serializer = self.get_serializer(paginated, many=True)
             return paginator.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    # -----------------------------
+    #      Update → finish logic
+    # -----------------------------
+
+    def perform_update(self, serializer):
+        """
+        Если статус забега изменился именно на finished —
+        пересчитываем время по Position.date_time.
+        """
+        instance_before = self.get_object()           # объект до изменений
+        old_status = instance_before.status
+
+        run = serializer.save()                       # объект после изменений
+
+        if old_status != Run.Status.FINISHED and run.status == Run.Status.FINISHED:
+            self.calculate_run_time(run)
+
+    # -----------------------------
+    #       Time calculation
+    # -----------------------------
+
+    def calculate_run_time(self, run):
+        """
+        Время забега = разница между самой ранней и самой поздней
+        позицией (date_time), независимо от порядка их отправки.
+        """
+        agg = run.positions.aggregate(
+            min_dt=Min('date_time'),
+            max_dt=Max('date_time')
+        )
+
+        min_dt = agg['min_dt']
+        max_dt = agg['max_dt']
+
+        if min_dt and max_dt:
+            run.run_time_seconds = int((max_dt - min_dt).total_seconds())
+            run.save()
 
 
 class UserViewSet(ReadOnlyModelViewSet):
@@ -255,9 +311,17 @@ class PositionViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        run = serializer.validated_data["run"]
+
+        # 1. Проверяем статус забега
+        if run.status != Run.Status.IN_PROGRESS:
+            raise serializers.ValidationError("Run must be in progress to record positions")
+
+        # 2. Создаём позицию (с date_time)
         position = serializer.save()
 
-        user = position.run.athlete
+        # 3. Логика сбора предметов (задание 15)
+        user = run.athlete
 
         for item in CollectibleItem.objects.all():
             distance = geodesic(
