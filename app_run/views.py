@@ -1,3 +1,4 @@
+from django.db.models import Min, Max
 from geopy.distance import geodesic
 
 from django.conf import settings
