@@ -76,6 +76,11 @@ class PositionSerializer(serializers.ModelSerializer):
     Сериализатор для позиции.
     Используется и для чтения, и для создания.
     """
+    # Принять и вернуть формат: 2024-10-12T14:30:15.123456
+    date_time = serializers.DateTimeField(
+        format="%Y-%m-%dT%H:%M:%S.%f",
+        input_formats=["%Y-%m-%dT%H:%M:%S.%f"],
+    )
 
     class Meta:
         model = Position
