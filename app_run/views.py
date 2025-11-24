@@ -189,9 +189,10 @@ class UserViewSet(ReadOnlyModelViewSet):
 
         return qs.annotate(
             runs_finished=Count(
-                'run_set',
-                filter=Q(run_set__status=Run.Status.FINISHED)
+                'run',
+                filter=Q(run__status=Run.Status.FINISHED)
             )
+
         )
 
     def get_list_with_optional_pagination(self, queryset):
