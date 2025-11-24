@@ -19,7 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     # Добавляем вычисляемое поле (оно не хранится в БД)
     # DRF сам вызовет метод get_runs_finished()
-    runs_finished = serializers.SerializerMethodField()
+    runs_finished = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = User

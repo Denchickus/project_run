@@ -1,4 +1,4 @@
-from django.db.models import Min, Max
+from django.db.models import Min, Max, Q, Count
 from geopy.distance import geodesic
 
 from django.conf import settings
@@ -178,16 +178,15 @@ class UserViewSet(ReadOnlyModelViewSet):
     pagination_class = None
 
     def get_queryset(self):
-        qs = User.objects.all().exclude(is_superuser=True)
-
-        user_type = self.request.query_params.get('type')
-
-        if user_type == 'coach':
-            qs = qs.filter(is_staff=True)
-        elif user_type == 'athlete':
-            qs = qs.filter(is_staff=False)
-
-        return qs
+        return (
+            User.objects
+            .annotate(
+                runs_finished=Count(
+                    'run',
+                    filter=Q(run__status='finished')
+                )
+            )
+        )
 
     def get_list_with_optional_pagination(self, queryset):
         if 'size' in self.request.query_params:
