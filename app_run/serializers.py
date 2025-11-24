@@ -29,19 +29,19 @@ class UserSerializer(serializers.ModelSerializer):
         # Тренер → True (is_staff=True), Атлет → False
         return 'coach' if obj.is_staff else 'athlete'
 
-    def get_runs_finished(self, obj):
-        """Возвращает количество завершённых забегов данного пользователя.
-
-            obj — это текущий объект User, который сериализуется.
-            Мы обращаемся к модели Run и считаем только забеги,
-            у которых:
-                athlete = obj (текущий пользователь)
-                и status = FINISHED
-        """
-        return Run.objects.filter(
-            athlete=obj,
-            status=Run.Status.FINISHED
-        ).count()
+    # def get_runs_finished(self, obj):
+    #     """Возвращает количество завершённых забегов данного пользователя.
+    #
+    #         obj — это текущий объект User, который сериализуется.
+    #         Мы обращаемся к модели Run и считаем только забеги,
+    #         у которых:
+    #             athlete = obj (текущий пользователь)
+    #             и status = FINISHED
+    #     """
+    #     return Run.objects.filter(
+    #         athlete=obj,
+    #         status=Run.Status.FINISHED
+    #     ).count()
 
 class AthleteInfoSerializer(serializers.ModelSerializer):
 
