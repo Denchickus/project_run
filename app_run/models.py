@@ -25,6 +25,12 @@ class Run(models.Model):
     speed = models.FloatField(null=True, blank=True) # средняя скорость, м/с
     run_time_seconds = models.IntegerField(null=True, blank=True)
 
+    def get_duration_seconds(self):
+        """Возвращает длительность забега в секундах."""
+        if self.start_time and self.finish_time:
+            return int((self.finish_time - self.start_time).total_seconds())
+        return None
+
     def save(self, *args, **kwargs):
         """
         Переопределяем save(), чтобы:
@@ -94,6 +100,27 @@ class Run(models.Model):
                     full_name="Пробеги 50 километров!"
                 )
 
+            duration = self.get_duration_seconds()
+
+            # Условие челленджа: 2 км за 10 минут
+            if (
+                    self.distance >= 2  # distance в километрах
+                    and duration is not None
+                    and duration <= 600  # 10 минут
+            ):
+                already_done = ChallengeComplete.objects.filter(
+                    user=self.athlete,
+                    type="speed_2km_10min",
+                    run=self,
+                ).exists()
+
+                if not already_done:
+                    ChallengeComplete.objects.create(
+                        user=self.athlete,
+                        type="speed_2km_10min",
+                        run=self,
+                    )
+
     def __str__(self):
         return f"Run #{self.pk} ({self.get_status_display()})"
 
@@ -128,6 +155,16 @@ class Challenge(models.Model):
     def __str__(self):
         # Строковое представление — удобно видеть в админке
         return f"{self.full_name} ({self.athlete.username})"
+
+class ChallengeComplete(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    type = models.CharField(max_length=255)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} — {self.type}"
+
 
 
 class Position(models.Model):
