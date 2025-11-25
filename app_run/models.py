@@ -102,14 +102,9 @@ class Run(models.Model):
                     full_name="Пробеги 50 километров!"
                 )
 
-            # --- ЧЕЛЛЕНДЖ "2 км за 10 минут" ---
-            duration = self.get_duration_seconds()
+            # --- ЧЕЛЛЕНДЖ "2 километра за 10 минут" ---
+            duration = self.run_time_seconds
 
-            # если нет start/finish → берём run_time_seconds
-            if duration is None:
-                duration = self.run_time_seconds
-
-            # duration всё ещё может быть None, если нигде нет данных
             if (
                     self.distance >= 2 and
                     duration is not None and
