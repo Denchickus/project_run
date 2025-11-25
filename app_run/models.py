@@ -12,6 +12,8 @@ class Run(models.Model):
         FINISHED = 'finished', 'Окончен'
 
     created_at = models.DateTimeField(auto_now_add=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    finish_time = models.DateTimeField(null=True, blank=True)
     comment = models.TextField()
     athlete = models.ForeignKey(User, on_delete=models.CASCADE)
 
