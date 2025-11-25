@@ -12,7 +12,7 @@ class RunSerializer(serializers.ModelSerializer):
     athlete_data = AthleteSerializer(source='athlete', read_only=True)
     class Meta:
         model = Run
-        fields = ['id', 'created_at', 'comment', 'athlete', 'athlete_data', 'status', 'run_time_seconds', 'distance']
+        fields = ['id', 'created_at', 'comment', 'athlete', 'athlete_data', 'status', 'run_time_seconds', 'distance', 'speed']
 
 class UserSerializer(serializers.ModelSerializer):
     # type — чтобы отличать тренеров от атлетов
@@ -26,7 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['type', 'id', 'date_joined', 'username', 'first_name', 'last_name', 'runs_finished']
 
     def get_type(self, obj):
-        return "athlete"
+        return 'coach' if obj.is_staff else 'athlete'
 
 
 class AthleteInfoSerializer(serializers.ModelSerializer):
@@ -71,7 +71,8 @@ class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
         # id нужен, чтобы фронт/клиент знал, какую позицию удалять
-        fields = ['id', 'run', 'latitude', 'longitude', 'created_at', 'date_time']
+        fields = ['id', 'run', 'latitude', 'longitude', 'created_at', 'date_time''speed', 'distance']
+        read_only_fields = ['speed', 'distance']
 
     def validate_latitude(self, value):
         """

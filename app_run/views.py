@@ -165,6 +165,19 @@ class RunViewSet(viewsets.ModelViewSet):
             run.run_time_seconds = int((max_dt - min_dt).total_seconds())
             run.save()
 
+            # --- считаем среднюю скорость по всем позициям ---
+            positions = run.positions.exclude(speed__isnull=True)
+
+            if positions.exists():
+                # здесь та самая строка avg_speed = round(sum(...), 2)
+                avg_speed = round(
+                    sum(p.speed for p in positions) / positions.count(),
+                    2
+                )
+                run.speed = avg_speed
+
+            run.save(update_fields=['run_time_seconds', 'speed'])
+
 
 class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
@@ -327,7 +340,42 @@ class PositionViewSet(viewsets.ModelViewSet):
         # 2. Создаём позицию (с date_time)
         position = serializer.save()
 
-        # 3. Логика сбора предметов (задание 15)
+        # ищем предыдущую позицию
+        prev_pos = Position.objects.filter(run=run).exclude(pk=position.pk).order_by('-date_time').first()
+        if prev_pos is None:
+            # первая точка забега
+            position.speed = 0.0
+            position.distance = 0.0
+        else:
+            # считаем расстояние (в метрах) между prev_pos и текущей позицией
+            prev_point = (float(prev_pos.latitude), float(prev_pos.longitude))
+            curr_point = (float(position.latitude), float(position.longitude))
+            segment_meters = geodesic(prev_point, curr_point).meters
+
+            # считаем разницу во времени в секундах
+            if position.date_time and prev_pos.date_time:
+                delta_seconds = (position.date_time - prev_pos.date_time).total_seconds()
+            else:
+                delta_seconds = 0
+
+            # защита от деления на ноль
+            if delta_seconds > 0:
+                speed_m_s = segment_meters / delta_seconds
+            else:
+                speed_m_s = 0.0
+
+            # накопленная дистанция: предыдущая distance + текущий отрезок в КИЛОМЕТРАХ
+            # (prev_pos.distance может быть None у второй точки, поэтому подставим 0)
+            prev_distance_km = prev_pos.distance or 0.0
+            distance_km = prev_distance_km + (segment_meters / 1000.0)
+
+            # округляем до сотых
+            position.speed = round(speed_m_s, 2)
+            position.distance = round(distance_km, 2)
+
+        # сохраняем обновлённую позицию
+        position.save(update_fields=['speed', 'distance'])
+        # 3. Логика сбора предметов
         user = run.athlete
 
         for item in CollectibleItem.objects.all():

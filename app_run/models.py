@@ -22,6 +22,7 @@ class Run(models.Model):
     )
 
     distance = models.FloatField(default=0)  # километры
+    speed = models.FloatField(null=True, blank=True) # средняя скорость, м/с
     run_time_seconds = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -156,6 +157,9 @@ class Position(models.Model):
         max_digits=8,     # например: -179.9999
         decimal_places=4,
     )
+
+    speed = models.FloatField(null=True, blank=True)  # м/с для этого отрезка
+    distance = models.FloatField(null=True, blank=True)  # накопленная дистанция в км
 
     # Когда точка была записана (для информации, может пригодиться позже).
     created_at = models.DateTimeField(auto_now_add=True)
