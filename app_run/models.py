@@ -105,11 +105,10 @@ class Run(models.Model):
             # --- ЧЕЛЛЕНДЖ "2 км за 10 минут" ---
             duration = self.get_duration_seconds()
 
-            if (
-                    self.distance >= 2  # километры
-                    and duration is not None
-                    and duration <= 600  # 10 минут
-            ):
+            # ЕСЛИ duration нет → считаем, что время подходит
+            duration_ok = duration is None or duration <= 600
+
+            if self.distance >= 2 and duration_ok:
                 if not Challenge.objects.filter(
                         athlete=self.athlete,
                         full_name="2 километра за 10 минут!"
