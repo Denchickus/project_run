@@ -102,25 +102,21 @@ class Run(models.Model):
                     full_name="Пробеги 50 километров!"
                 )
 
+            # --- ЧЕЛЛЕНДЖ "2 км за 10 минут" ---
             duration = self.get_duration_seconds()
 
-            # Условие челленджа: 2 км за 10 минут
             if (
-                    self.distance >= 2  # distance в километрах
+                    self.distance >= 2  # километры
                     and duration is not None
                     and duration <= 600  # 10 минут
             ):
-                already_done = ChallengeComplete.objects.filter(
-                    user=self.athlete,
-                    type="speed_2km_10min",
-                    run=self,
-                ).exists()
-
-                if not already_done:
-                    ChallengeComplete.objects.create(
-                        user=self.athlete,
-                        type="speed_2km_10min",
-                        run=self,
+                if not Challenge.objects.filter(
+                        athlete=self.athlete,
+                        full_name="2 километра за 10 минут!"
+                ).exists():
+                    Challenge.objects.create(
+                        athlete=self.athlete,
+                        full_name="2 километра за 10 минут!"
                     )
 
     def __str__(self):
@@ -157,16 +153,6 @@ class Challenge(models.Model):
     def __str__(self):
         # Строковое представление — удобно видеть в админке
         return f"{self.full_name} ({self.athlete.username})"
-
-class ChallengeComplete(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    type = models.CharField(max_length=255)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.user.username} — {self.type}"
-
 
 
 class Position(models.Model):
