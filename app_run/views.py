@@ -163,7 +163,6 @@ class RunViewSet(viewsets.ModelViewSet):
 
         if min_dt and max_dt:
             run.run_time_seconds = int((max_dt - min_dt).total_seconds())
-            run.save()
 
             # --- считаем среднюю скорость по всем позициям ---
             positions = run.positions.exclude(speed__isnull=True)
