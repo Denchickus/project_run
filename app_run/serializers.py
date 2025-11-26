@@ -50,18 +50,23 @@ class RunSerializer(serializers.ModelSerializer):
 class UserBaseSerializer(serializers.ModelSerializer):
     """
     Базовый сериализатор для списка пользователей.
-    Тут НЕ должно быть coach/athletes списков.
+    /api/users/
     """
-
     type = serializers.SerializerMethodField()
+    runs_finished = serializers.IntegerField(read_only=True)
+    date_joined = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = User
-        fields = ["id",        # для ссылок
-                  "username",  # логин
-                  "first_name",
-                  "last_name",
-                  "type"]      # coach / athlete
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "type",
+            "date_joined",
+            "runs_finished",
+        ]
 
     def get_type(self, user: User) -> str:
         return "coach" if user.is_staff else "athlete"
@@ -74,9 +79,8 @@ class UserBaseSerializer(serializers.ModelSerializer):
 class AthleteDetailSerializer(UserBaseSerializer):
     """
     Детальный сериализатор для АТЛЕТА.
-    Добавляем:
-    - coach (id тренера)
-    - items (его собранные предметы)
+    + coach
+    + items
     """
 
     coach = serializers.SerializerMethodField()
@@ -96,9 +100,8 @@ class AthleteDetailSerializer(UserBaseSerializer):
 class CoachDetailSerializer(UserBaseSerializer):
     """
     Детальный сериализатор для ТРЕНЕРА.
-    Добавляем:
-    - список athletes: id атлетов, подписанных на него
-    - items: его собственные собранные предметы
+    + athletes
+    + items
     """
 
     athletes = serializers.SerializerMethodField()
@@ -109,8 +112,7 @@ class CoachDetailSerializer(UserBaseSerializer):
 
     def get_athletes(self, coach: User):
         return list(
-            Subscribe.objects
-            .filter(coach=coach)
+            Subscribe.objects.filter(coach=coach)
             .values_list("athlete_id", flat=True)
         )
 
@@ -123,7 +125,7 @@ class CoachDetailSerializer(UserBaseSerializer):
 # ============================================================
 
 class SubscribeSerializer(serializers.Serializer):
-    """Сериализатор для запроса POST subscribe_to_coach."""
+    """Сериализатор для POST /subscribe_to_coach/."""
     athlete = serializers.IntegerField()
 
 
@@ -188,9 +190,7 @@ class PositionSerializer(serializers.ModelSerializer):
 
     def validate_run(self, value):
         if value.status != "in_progress":
-            raise serializers.ValidationError(
-                "Run must be in_progress to record positions"
-            )
+            raise serializers.ValidationError("Run must be in_progress to record positions")
         return value
 
 
