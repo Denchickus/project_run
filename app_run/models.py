@@ -100,7 +100,6 @@ class Run(models.Model):
                 )
 
         # --- ЧЕЛЛЕНДЖ 2 км за 10 минут ---
-        # duration появится только после PATCH run_time_seconds — поэтому проверяем всегда
         duration = self.run_time_seconds
 
         if (
@@ -213,4 +212,28 @@ class CollectibleItem(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.uid})"
+
+
+class Subscribe(models.Model):
+    """
+    Подписка атлета на тренера.
+    """
+
+    athlete = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="subscriptions",   # athlete.subscriptions → список подписок
+    )
+    coach = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="subscribers",     # coach.subscribers → кто на него подписан
+    )
+
+    class Meta:
+        unique_together = ("athlete", "coach")  # защитит от дублей
+
+    def __str__(self):
+        return f"{self.athlete.username} → {self.coach.username}"
+
 
