@@ -23,7 +23,7 @@ class Run(models.Model):
         default=Status.INIT
     )
 
-    distance = models.FloatField(default=0)  # километры
+    distance = models.FloatField(default=0)  # метры
     speed = models.FloatField(null=True, blank=True) # средняя скорость, м/с
     run_time_seconds = models.IntegerField(null=True, blank=True)
 
@@ -74,17 +74,15 @@ class Run(models.Model):
                 .values_list('latitude', 'longitude')
             )
 
-            total_km = 0.0
+            total_m = 0.0
             if len(positions) >= 2:
                 for i in range(len(positions) - 1):
                     point1 = (float(positions[i][0]), float(positions[i][1]))
                     point2 = (float(positions[i + 1][0]), float(positions[i + 1][1]))
-                    segment = haversine(point1, point2, unit=Unit.KILOMETERS)
-                    total_km += segment
+                    segment_m = haversine(point1, point2, unit=Unit.METERS)
+                    total_m += segment_m
 
-            self.distance = total_km
-
-            # Сохраняем distance в базу, чтобы он участвовал в сумме
+            self.distance = total_m
             super().save(update_fields=['distance'])
 
             # --- ЧЕЛЛЕНДЖ 50 км ---
@@ -93,14 +91,15 @@ class Run(models.Model):
                 status=self.Status.FINISHED
             ).aggregate(total=models.Sum('distance'))['total'] or 0
 
-            if total_distance >= 50 and not Challenge.objects.filter(
-                    athlete=self.athlete,
-                    full_name="Пробеги 50 километров!"
-            ).exists():
-                Challenge.objects.create(
-                    athlete=self.athlete,
-                    full_name="Пробеги 50 километров!"
-                )
+            if total_distance >= 50_000:
+                if not Challenge.objects.filter(
+                        athlete=self.athlete,
+                        full_name="Пробеги 50 километров!"
+                ).exists():
+                    Challenge.objects.create(
+                        athlete=self.athlete,
+                        full_name="Пробеги 50 километров!"
+                    )
 
             # --- ЧЕЛЛЕНДЖ "2 километра за 10 минут" ---
             duration = self.get_duration_seconds()
@@ -108,7 +107,7 @@ class Run(models.Model):
                 duration = self.run_time_seconds
 
             if (
-                    self.distance >= 2  # километры
+                    self.distance >= 2000  # метры (2 км)
                     and duration is not None
                     and duration <= 600  # 10 минут
             ):
