@@ -24,7 +24,7 @@ class Run(models.Model):
     )
 
     distance = models.FloatField(default=0)  # километры
-    speed = models.FloatField(null=True, blank=True) # средняя скорость, м/с
+    speed = models.FloatField(null=True, blank=True)
     run_time_seconds = models.IntegerField(null=True, blank=True)
 
     def get_duration_seconds(self):
@@ -35,40 +35,20 @@ class Run(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Переопределяем save(), чтобы:
-        1) Реагировать на переход в finished (челленджи)
-        2) После stop — рассчитать distance по GPS точкам
+        Реагируем на переход в finished и считаем distance до сохранения.
         """
 
-        # 1. Запоминаем старый статус ДО сохранения
+        # 1. Получаем прошлый статус
         old_status = None
         if self.pk:
-            old_status = Run.objects.filter(pk=self.pk) \
-                .values_list('status', flat=True) \
-                .first()
+            old_status = Run.objects.filter(pk=self.pk).values_list("status", flat=True).first()
 
-        # 2. Сохраняем изменения (новый статус попадёт в БД)
-        super().save(*args, **kwargs)
+        is_finished_transition = (
+            self.status == self.Status.FINISHED and old_status != self.Status.FINISHED
+        )
 
-        # 3. Реагируем только на ПЕРЕХОД → finished
-        if self.status == self.Status.FINISHED and old_status != self.Status.FINISHED:
-
-            # --- ЧЕЛЛЕНДЖ 10 забегов ---
-            finished_count = Run.objects.filter(
-                athlete=self.athlete,
-                status=self.Status.FINISHED
-            ).count()
-
-            if finished_count == 10 and not Challenge.objects.filter(
-                    athlete=self.athlete,
-                    full_name="Сделай 10 Забегов!"
-            ).exists():
-                Challenge.objects.create(
-                    athlete=self.athlete,
-                    full_name="Сделай 10 Забегов!"
-                )
-
-            # --- РАСЧЁТ distance для текущего забега ---
+        # 2. Если будет переход в finished — заранее считаем distance
+        if is_finished_transition:
             positions = list(
                 self.positions.order_by('created_at')
                 .values_list('latitude', 'longitude')
@@ -77,43 +57,61 @@ class Run(models.Model):
             total_km = 0.0
             if len(positions) >= 2:
                 for i in range(len(positions) - 1):
-                    point1 = (float(positions[i][0]), float(positions[i][1]))
-                    point2 = (float(positions[i + 1][0]), float(positions[i + 1][1]))
-                    segment_km = haversine(point1, point2, unit=Unit.KILOMETERS)
-                    total_km += segment_km
+                    p1 = (float(positions[i][0]), float(positions[i][1]))
+                    p2 = (float(positions[i + 1][0]), float(positions[i + 1][1]))
+                    total_km += haversine(p1, p2, unit=Unit.KILOMETERS)
 
-            self.distance = total_km
-            super().save(update_fields=['distance'])
+            self.distance = total_km  # важно: сохраняем в километрах
+
+        # 3. Сохраняем объект (один раз!)
+        super().save(*args, **kwargs)
+
+        # 4. Если это был переход в finished — начисляем челленджи
+        if is_finished_transition:
+
+            # --- ЧЕЛЛЕНДЖ 10 забегов ---
+            finished_count = Run.objects.filter(
+                athlete=self.athlete,
+                status=self.Status.FINISHED,
+            ).count()
+
+            if finished_count == 10 and not Challenge.objects.filter(
+                athlete=self.athlete,
+                full_name="Сделай 10 Забегов!"
+            ).exists():
+                Challenge.objects.create(
+                    athlete=self.athlete,
+                    full_name="Сделай 10 Забегов!"
+                )
 
             # --- ЧЕЛЛЕНДЖ 50 км ---
             total_distance = Run.objects.filter(
                 athlete=self.athlete,
-                status=self.Status.FINISHED
-            ).aggregate(total=models.Sum('distance'))['total'] or 0
+                status=self.Status.FINISHED,
+            ).aggregate(total=models.Sum("distance"))['total'] or 0
 
-            if total_distance >= 50:
-                if not Challenge.objects.filter(
-                        athlete=self.athlete,
-                        full_name="Пробеги 50 километров!"
-                ).exists():
-                    Challenge.objects.create(
-                        athlete=self.athlete,
-                        full_name="Пробеги 50 километров!"
-                    )
+            if total_distance >= 50 and not Challenge.objects.filter(
+                athlete=self.athlete,
+                full_name="Пробеги 50 километров!"
+            ).exists():
+                Challenge.objects.create(
+                    athlete=self.athlete,
+                    full_name="Пробеги 50 километров!"
+                )
 
-            # --- ЧЕЛЛЕНДЖ "2 километра за 10 минут" ---
+            # --- ЧЕЛЛЕНДЖ 2 км за 10 минут ---
             duration = self.get_duration_seconds()
             if duration is None:
                 duration = self.run_time_seconds
 
             if (
-                    self.distance >= 2  # (2 км)
-                    and duration is not None
-                    and duration <= 600  # 10 минут
+                self.distance >= 2 and      # километры!
+                duration is not None and
+                duration <= 600             # 10 минут
             ):
                 if not Challenge.objects.filter(
-                        athlete=self.athlete,
-                        full_name="2 километра за 10 минут!"
+                    athlete=self.athlete,
+                    full_name="2 километра за 10 минут!"
                 ).exists():
                     Challenge.objects.create(
                         athlete=self.athlete,
@@ -122,6 +120,7 @@ class Run(models.Model):
 
     def __str__(self):
         return f"Run #{self.pk} ({self.get_status_display()})"
+
 
 
 
