@@ -99,24 +99,25 @@ class Run(models.Model):
                     full_name="Пробеги 50 километров!"
                 )
 
-            # --- ЧЕЛЛЕНДЖ 2 км за 10 минут ---
-            duration = self.get_duration_seconds()
-            if duration is None:
-                duration = self.run_time_seconds
+        # --- ЧЕЛЛЕНДЖ 2 км за 10 минут ---
+        # duration появится только после PATCH run_time_seconds — поэтому проверяем всегда
+        duration = self.run_time_seconds
 
-            if (
-                self.distance >= 2 and      # километры!
-                duration is not None and
-                duration <= 600             # 10 минут
-            ):
-                if not Challenge.objects.filter(
+        if (
+                self.status == self.Status.FINISHED and  # челлендж возможен только для завершённого забега
+                duration is not None and  # время уже записано
+                self.distance >= 2 and  # километры
+                duration <= 600  # 10 минут
+        ):
+            if not Challenge.objects.filter(
                     athlete=self.athlete,
                     full_name="2 километра за 10 минут!"
-                ).exists():
-                    Challenge.objects.create(
-                        athlete=self.athlete,
-                        full_name="2 километра за 10 минут!"
-                    )
+            ).exists():
+                Challenge.objects.create(
+                    athlete=self.athlete,
+                    full_name="2 километра за 10 минут!"
+                )
+
 
     def __str__(self):
         return f"Run #{self.pk} ({self.get_status_display()})"
