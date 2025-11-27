@@ -7,6 +7,7 @@ from .views import (
     UploadCollectibleFile,
     UserViewSet,
     subscribe_to_coach,
+    challenges_summary,
 )
 
 router = DefaultRouter()
@@ -17,6 +18,7 @@ urlpatterns = [
     path('collectible_item/', CollectibleItemView.as_view()),
     path('upload_file/', UploadCollectibleFile.as_view()),
     path('subscribe_to_coach/<int:id>/', subscribe_to_coach),
+    path('challenges_summary/', challenges_summary),
 
     path('', include(router.urls)),
 ]

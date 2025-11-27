@@ -89,6 +89,46 @@ def subscribe_to_coach(request, id):
     Subscribe.objects.create(athlete=athlete, coach=coach)
     return Response({"status": "ok"}, status=200)
 
+@api_view(['GET'])
+def challenges_summary(request):
+    """
+    /api/challenges_summary/
+    Возвращает список челленджей с атлетами, которые их выполнили.
+    """
+    # 1 запрос в БД, подтягиваем сразу связанного атлета
+    challenges = (
+        Challenge.objects
+        .select_related('athlete')
+        .order_by('full_name', 'athlete__id')
+    )
+
+    # Группируем по названию челленджа
+    summary = {}
+
+    for ch in challenges:
+        name = ch.full_name
+        athlete = ch.athlete
+
+        if name not in summary:
+            summary[name] = []
+
+        summary[name].append({
+            "id": athlete.id,
+            "full_name": f"{athlete.first_name} {athlete.last_name}",
+            "username": athlete.username,
+        })
+
+    # Преобразуем в список, как ждёт фронт/Stepik
+    result = [
+        {
+            "name_to_display": name,
+            "athletes": athletes,
+        }
+        for name, athletes in summary.items()
+    ]
+
+    return Response(result)
+
 
 # --------------------------------------------------------------------
 #                           RUN VIEWSET
