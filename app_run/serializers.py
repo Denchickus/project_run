@@ -55,6 +55,7 @@ class UserBaseSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     runs_finished = serializers.IntegerField(read_only=True)
     date_joined = serializers.DateTimeField(read_only=True)
+    rating = serializers.FloatField(read_only=True)
 
     class Meta:
         model = User
@@ -66,6 +67,7 @@ class UserBaseSerializer(serializers.ModelSerializer):
             "type",
             "date_joined",
             "runs_finished",
+            "rating",
         ]
 
     def get_type(self, user: User) -> str:
@@ -210,3 +212,13 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
         if not (-180 <= value <= 180):
             raise serializers.ValidationError("Longitude must be between -180 and 180")
         return value
+
+class RateCoachSerializer(serializers.Serializer):
+    athlete = serializers.IntegerField()
+    rating = serializers.IntegerField()
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5")
+        return value
+

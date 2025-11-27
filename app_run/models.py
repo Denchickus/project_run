@@ -230,6 +230,8 @@ class Subscribe(models.Model):
         related_name="subscribers",     # coach.subscribers → кто на него подписан
     )
 
+    rating = models.PositiveSmallIntegerField(null=True, blank=True)
+
     class Meta:
         unique_together = ("athlete", "coach")  # защитит от дублей
 

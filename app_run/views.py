@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Min, Max, Q, Count
+from django.db.models import Min, Max, Q, Count, Avg
 from django.shortcuts import get_object_or_404
 
 from geopy.distance import geodesic
@@ -31,7 +31,7 @@ from .serializers import (
     CollectibleItemSerializer,
     UserBaseSerializer,
     AthleteDetailSerializer,
-    CoachDetailSerializer,
+    CoachDetailSerializer, RateCoachSerializer,
 )
 from .pagination import CustomPageNumberPagination
 
@@ -118,7 +118,7 @@ def challenges_summary(request):
             "username": athlete.username,
         })
 
-    # Преобразуем в список, как ждёт фронт/Stepik
+    # Преобразуем в список, как ждёт фронт
     result = [
         {
             "name_to_display": name,
@@ -128,6 +128,42 @@ def challenges_summary(request):
     ]
 
     return Response(result)
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def rate_coach(request, coach_id):
+    serializer = RateCoachSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    athlete_id = serializer.validated_data["athlete"]
+    rating = serializer.validated_data["rating"]
+
+    # 1. Проверяем тренера
+    coach = get_object_or_404(User, pk=coach_id)
+    if not coach.is_staff:
+        return Response({"error": "User is not a coach"}, status=400)
+
+    # 2. Проверяем атлета
+    try:
+        athlete = User.objects.get(pk=athlete_id)
+    except User.DoesNotExist:
+        return Response({"error": "Athlete not found"}, status=400)
+
+    if athlete.is_staff:
+        return Response({"error": "User is not an athlete"}, status=400)
+
+    # 3. Проверяем подписку
+    try:
+        sub = Subscribe.objects.get(athlete=athlete, coach=coach)
+    except Subscribe.DoesNotExist:
+        return Response({"error": "Athlete is not subscribed to this coach"}, status=400)
+
+    # 4. Ставим или обновляем рейтинг
+    sub.rating = rating
+    sub.save(update_fields=["rating"])
+
+    return Response({"status": "ok", "rating": rating})
+
 
 
 # --------------------------------------------------------------------
@@ -250,8 +286,9 @@ class UserViewSet(ReadOnlyModelViewSet):
         return qs.annotate(
             runs_finished=Count(
                 'run',
-                filter=Q(run__status=Run.Status.FINISHED),
-            )
+                filter=Q(run__status=Run.Status.FINISHED)
+            ),
+            rating=Avg('subscribers__rating')
         )
 
     def get_serializer_class(self):
