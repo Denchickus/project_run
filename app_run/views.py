@@ -132,16 +132,18 @@ def challenges_summary(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def rate_coach(request, coach_id):
-    serializer = RateCoachSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
 
-    athlete_id = serializer.validated_data["athlete"]
-    rating = serializer.validated_data["rating"]
 
     # 1. Проверяем тренера
     coach = get_object_or_404(User, pk=coach_id)
     if not coach.is_staff:
         return Response({"error": "User is not a coach"}, status=400)
+
+    serializer = RateCoachSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    athlete_id = serializer.validated_data["athlete"]
+    rating = serializer.validated_data["rating"]
 
     # 2. Проверяем атлета
     try:
