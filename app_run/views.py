@@ -169,17 +169,16 @@ def rate_coach(request, coach_id):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def analytics_for_coach(request, coach_id):
-    """
-    GET /api/analytics_for_coach/<coach_id>/
-    """
-
     coach = get_object_or_404(User, pk=coach_id)
-    if not coach.is_staff:
-        return Response({"error": "User is not a coach"}, status=400)
 
-    # считаем только забеги ЭТОГО тренера
+    # список атлетов, подписанных на тренера
+    athlete_ids = Subscribe.objects.filter(
+        coach_id=coach_id
+    ).values_list("athlete_id", flat=True)
+
+    # завершённые забеги этих атлетов
     runs = Run.objects.filter(
-        coach_id=coach_id,
+        athlete_id__in=athlete_ids,
         status=Run.Status.FINISHED,
     )
 
@@ -219,8 +218,6 @@ def analytics_for_coach(request, coach_id):
     }
 
     return Response(data)
-
-
 
 # --------------------------------------------------------------------
 #                           RUN VIEWSET
