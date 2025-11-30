@@ -166,6 +166,75 @@ def rate_coach(request, coach_id):
 
     return Response({"status": "ok", "rating": rating})
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def analytics_for_coach(request, coach_id):
+    # 1. Проверяем тренера
+    coach = get_object_or_404(User, pk=coach_id)
+    if not coach.is_staff:
+        return Response({"error": "User is not a coach"}, status=400)
+
+    # 2. Все подписанные атлеты
+    athlete_ids = list(
+        Subscribe.objects.filter(coach=coach).values_list("athlete_id", flat=True)
+    )
+
+    if not athlete_ids:
+        return Response({
+            "longest_run_user": None,
+            "longest_run_value": 0,
+            "total_run_user": None,
+            "total_run_value": 0,
+            "speed_avg_user": None,
+            "speed_avg_value": 0,
+        })
+
+    # -------------------------------
+    # Самый длинный одиночный забег
+    # -------------------------------
+    longest_run = (
+        Run.objects.filter(athlete_id__in=athlete_ids, status=Run.Status.FINISHED)
+        .exclude(distance__isnull=True)
+        .order_by("-distance")
+        .values("athlete_id", "distance")
+        .first()
+    )
+
+    # -------------------------------
+    # Суммарная дистанция
+    # -------------------------------
+    total_run = (
+        Run.objects.filter(athlete_id__in=athlete_ids, status=Run.Status.FINISHED)
+        .values("athlete_id")
+        .annotate(total_distance=Sum("distance"))
+        .order_by("-total_distance")
+        .first()
+    )
+
+    # -------------------------------
+    # Лучшая средняя скорость
+    # -------------------------------
+    best_speed = (
+        Run.objects.filter(athlete_id__in=athlete_ids, status=Run.Status.FINISHED)
+        .exclude(speed__isnull=True)
+        .values("athlete_id")
+        .annotate(avg_speed=Avg("speed"))
+        .order_by("-avg_speed")
+        .first()
+    )
+
+    return Response({
+        "longest_run_user": longest_run["athlete_id"] if longest_run else None,
+        "longest_run_value": round(longest_run["distance"], 2) if longest_run else 0,
+
+        "total_run_user": total_run["athlete_id"] if total_run else None,
+        "total_run_value": round(total_run["total_distance"], 2) if total_run else 0,
+
+        "speed_avg_user": best_speed["athlete_id"] if best_speed else None,
+        "speed_avg_value": round(best_speed["avg_speed"], 2) if best_speed else 0,
+    })
+
+
 
 
 # --------------------------------------------------------------------
