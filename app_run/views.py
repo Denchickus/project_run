@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Min, Max, Q, Count, Avg
+from django.db.models import Min, Max, Q, Count, Avg, Sum
 from django.shortcuts import get_object_or_404
 
 from geopy.distance import geodesic
@@ -170,90 +170,58 @@ def rate_coach(request, coach_id):
 @permission_classes([AllowAny])
 def analytics_for_coach(request, coach_id):
     """
-    /api/analytics_for_coach/<coach_id>/
-    Возвращает dict с аналитикой по атлетам тренера:
+    GET /api/analytics_for_coach/<coach_id>/
+
+    Возвращает один dict с полями:
     - longest_run_user / longest_run_value
-    - total_run_user / total_run_value
-    - speed_avg_user  / speed_avg_value
+    - total_run_user   / total_run_value
+    - speed_avg_user   / speed_avg_value
     """
 
-    # 1. Проверяем тренера (404, если его нет или он не тренер)
-    coach = get_object_or_404(User, pk=coach_id, is_staff=True)
+    # 1. Проверяем тренера (404, если не существует)
+    coach = get_object_or_404(User, pk=coach_id)
+    if not coach.is_staff:
+        return Response({"error": "User is not a coach"}, status=400)
 
-    # 2. Все атлеты, подписанные на этого тренера
-    athlete_ids = (
-        Subscribe.objects
-        .filter(coach=coach)
-        .values_list("athlete_id", flat=True)
-    )
+    # 2. Берём всех атлетов, подписанных на этого тренера
+    athlete_ids = Subscribe.objects.filter(coach=coach).values_list("athlete_id", flat=True)
 
-    # Если ни одного атлета — сразу пустая аналитика
-    if not athlete_ids:
-        data = {
-            "longest_run_user": None,
-            "longest_run_value": 0,
-            "total_run_user": None,
-            "total_run_value": 0,
-            "speed_avg_user": None,
-            "speed_avg_value": 0,
-        }
-        return Response(data)
-
-    # Берём только завершённые забеги этих атлетов
-    runs_qs = Run.objects.filter(
+    # 3. Берём только завершённые забеги этих атлетов
+    runs = Run.objects.filter(
         athlete_id__in=athlete_ids,
         status=Run.Status.FINISHED,
     )
 
-    # --- 1) Самый длинный забег ---
+    # --- longest_run ---
     longest = (
-        runs_qs
-        .order_by("-distance")
+        runs.order_by("-distance")
         .values("athlete_id", "distance")
         .first()
     )
+    longest_run_user = longest["athlete_id"] if longest else None
+    longest_run_value = float(longest["distance"]) if longest else 0.0
 
-    if longest:
-        longest_run_user = longest["athlete_id"]
-        longest_run_value = float(longest["distance"] or 0)
-    else:
-        longest_run_user = None
-        longest_run_value = 0
-
-    # --- 2) Кто в сумме больше всех пробежал ---
+    # --- total_run ---
     total = (
-        runs_qs
-        .values("athlete_id")
+        runs.values("athlete_id")
         .annotate(total_distance=Sum("distance"))
         .order_by("-total_distance")
         .first()
     )
+    total_run_user = total["athlete_id"] if total else None
+    total_run_value = float(total["total_distance"]) if total else 0.0
 
-    if total:
-        total_run_user = total["athlete_id"]
-        total_run_value = float(total["total_distance"] or 0)
-    else:
-        total_run_user = None
-        total_run_value = 0
-
-    # --- 3) Кто в среднем быстрее всех ---
+    # --- speed_avg ---
     speed = (
-        runs_qs
-        .exclude(speed__isnull=True)
+        runs.exclude(speed__isnull=True)
         .values("athlete_id")
         .annotate(avg_speed=Avg("speed"))
         .order_by("-avg_speed")
         .first()
     )
+    speed_avg_user = speed["athlete_id"] if speed else None
+    speed_avg_value = float(speed["avg_speed"]) if speed else 0.0
 
-    if speed:
-        speed_avg_user = speed["athlete_id"]
-        speed_avg_value = float(speed["avg_speed"] or 0)
-    else:
-        speed_avg_user = None
-        speed_avg_value = 0
-
-    # ВАЖНО: возвращаем ИМЕННО dict
     data = {
         "longest_run_user": longest_run_user,
         "longest_run_value": longest_run_value,
@@ -263,7 +231,9 @@ def analytics_for_coach(request, coach_id):
         "speed_avg_value": speed_avg_value,
     }
 
+    # ВАЖНО: всегда возвращаем один dict
     return Response(data)
+
 
 # --------------------------------------------------------------------
 #                           RUN VIEWSET
