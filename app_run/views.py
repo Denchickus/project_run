@@ -171,35 +171,24 @@ def rate_coach(request, coach_id):
 def analytics_for_coach(request, coach_id):
     """
     GET /api/analytics_for_coach/<coach_id>/
-
-    Возвращает один dict с полями:
-    - longest_run_user / longest_run_value
-    - total_run_user   / total_run_value
-    - speed_avg_user   / speed_avg_value
     """
 
-    # 1. Проверяем тренера (404, если не существует)
     coach = get_object_or_404(User, pk=coach_id)
     if not coach.is_staff:
         return Response({"error": "User is not a coach"}, status=400)
 
-    # 2. Берём всех атлетов, подписанных на этого тренера
-    athlete_ids = Subscribe.objects.filter(coach=coach).values_list("athlete_id", flat=True)
-
-    # 3. Берём только завершённые забеги этих атлетов
+    # считаем только забеги ЭТОГО тренера
     runs = Run.objects.filter(
-        athlete_id__in=athlete_ids,
+        coach_id=coach_id,
         status=Run.Status.FINISHED,
     )
 
     # --- longest_run ---
     longest = (
-        runs.order_by("-distance")
-        .values("athlete_id", "distance")
+        runs.values("athlete_id", "distance")
+        .order_by("-distance")
         .first()
     )
-    longest_run_user = longest["athlete_id"] if longest else None
-    longest_run_value = float(longest["distance"]) if longest else 0.0
 
     # --- total_run ---
     total = (
@@ -208,31 +197,29 @@ def analytics_for_coach(request, coach_id):
         .order_by("-total_distance")
         .first()
     )
-    total_run_user = total["athlete_id"] if total else None
-    total_run_value = float(total["total_distance"]) if total else 0.0
 
     # --- speed_avg ---
     speed = (
-        runs.exclude(speed__isnull=True)
+        runs.filter(speed__isnull=False)
         .values("athlete_id")
         .annotate(avg_speed=Avg("speed"))
         .order_by("-avg_speed")
         .first()
     )
-    speed_avg_user = speed["athlete_id"] if speed else None
-    speed_avg_value = float(speed["avg_speed"]) if speed else 0.0
 
     data = {
-        "longest_run_user": longest_run_user,
-        "longest_run_value": longest_run_value,
-        "total_run_user": total_run_user,
-        "total_run_value": total_run_value,
-        "speed_avg_user": speed_avg_user,
-        "speed_avg_value": speed_avg_value,
+        "longest_run_user": longest["athlete_id"] if longest else None,
+        "longest_run_value": float(longest["distance"]) if longest else None,
+
+        "total_run_user": total["athlete_id"] if total else None,
+        "total_run_value": float(total["total_distance"]) if total else None,
+
+        "speed_avg_user": speed["athlete_id"] if speed else None,
+        "speed_avg_value": float(speed["avg_speed"]) if speed else None,
     }
 
-    # ВАЖНО: всегда возвращаем один dict
     return Response(data)
+
 
 
 # --------------------------------------------------------------------
