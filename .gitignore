@@ -1,6 +1,16 @@
-.idea/
-venv/
-.venv/
+# Python
 __pycache__/
+*.pyc
+
+# Pytest
+.pytest_cache/
+
+# Environment
 .env
+
+# SQLite
 db.sqlite3
+
+# IDE
+.vscode/
+.idea/

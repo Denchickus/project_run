@@ -52,4 +52,9 @@ line-length = 88
 target-version = ["py312"]
 exclude = "migrations"
 
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "project_run.settings.local"
+python_files = ["test_*.py", "*_test.py"]
+
+
 
