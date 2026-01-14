@@ -44,7 +44,7 @@ target-version = "py312"
 exclude = [
     "migrations",
     "__pycache__",
-    "project_run/settings",
+    "config/settings",
 ]
 
 
@@ -54,7 +54,7 @@ target-version = ["py312"]
 exclude = "migrations"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "project_run.settings.local"
+DJANGO_SETTINGS_MODULE = "config.settings.local"
 python_files = ["test_*.py", "*_test.py"]
 
 

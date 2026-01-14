@@ -1,6 +1,6 @@
 import pytest
 from django.contrib.auth.models import User
-from app_run.models import Run
+from runs.models import Run
 
 
 @pytest.mark.django_db
