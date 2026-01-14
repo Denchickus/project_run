@@ -51,14 +51,20 @@ Backend-приложение для бегового трекера (REST API).
 
 ---
 
+### Переменные окружения
+
+Скопируйте файл `.env.example` в `.env` и заполните необходимые значения.
+
+
 ## ⚙️ Запуск проекта локально (Poetry)
 
-### 2) Применить миграции
+
+### 1) Применить миграции
 ```bash
 poetry run python manage.py migrate --settings=project_run.settings.local
 ```
 
-### 3) Запустить сервер
+### 2) Запустить сервер
 ```bash
 poetry run python manage.py runserver --settings=project_run.settings.local
 ```

@@ -1,3 +1,5 @@
+"""API представления и ViewSet-ы бегового трекера."""
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Min, Max, Q, Count, Avg, Sum
@@ -36,9 +38,6 @@ from .serializers import (
     RateCoachSerializer,
 )
 from .pagination import CustomPageNumberPagination
-
-
-"""API представления и ViewSet-ы бегового трекера."""
 
 
 @api_view(["GET"])
