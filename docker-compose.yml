@@ -5,4 +5,4 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-    command: poetry run python manage.py runserver 0.0.0.0:8000 --settings=project_run.settings.local
+    command: poetry run python manage.py runserver 0.0.0.0:8000 --settings=config.settings.local

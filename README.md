@@ -113,16 +113,16 @@ docker compose up --build
 
 2. Применение миграций:
 ```bash
-docker compose exec web poetry run python manage.py migrate
+docker compose exec web poetry run python manage.py migrate --settings=config.settings.local
 ```
 
 3. Создание суперпользователя:
 ```bash
-docker compose exec web poetry run python manage.py createsuperuser
+docker compose exec web poetry run python manage.py createsuperuser --settings=config.settings.local
 ```
 
 Сервер будет доступен по адресу:  
-[http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+[http://127.0.0.1:8000/api/](http://127.0.0.1:8000/)
 
 ## 🧪 Тесты
 
