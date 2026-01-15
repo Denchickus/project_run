@@ -121,7 +121,7 @@ docker compose exec web poetry run python manage.py migrate --settings=config.se
 docker compose exec web poetry run python manage.py createsuperuser --settings=config.settings.local
 ```
 Сервер будет доступен по адресу:  
-[http://127.0.0.1:8000/api/](http://127.0.0.1:8000/)
+[http://127.0.0.1:8000/api/](http://127.0.0.1:8000/api/)
 
 ## 🧪 Тесты
 
