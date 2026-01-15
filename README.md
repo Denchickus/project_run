@@ -57,7 +57,7 @@ Backend-приложение для бегового трекера на Django 
 
 1️⃣ **Клонирование репозитория**:
 ```bash
-git clone <REPO_URL>
+git clone git@github.com:Denchickus/project_run.git
 cd project_run
 ```
 
